@@ -1,0 +1,13 @@
+[package]
+name = "gpxa"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+gpx = { git = "https://github.com/georust/gpx" }
+geo = "0.21"
+argh = "0.1"
+anyhow = "1"
+time = "0.3"
