@@ -2,30 +2,30 @@ use anyhow::{bail, Result};
 
 use time::Duration;
 
-pub fn pretty_duration(duration: Duration) -> String {
-    let mut s = String::new();
-    let mut secs = duration.whole_seconds();
-    if secs >= 3600 {
-        s.push_str(&(secs / 3600).to_string());
-        s.push(':');
-        secs %= 3600
-    }
+// pub fn pretty_duration(duration: Duration) -> String {
+//     let mut s = String::new();
+//     let mut secs = duration.whole_seconds();
+//     if secs >= 3600 {
+//         s.push_str(&(secs / 3600).to_string());
+//         s.push(':');
+//         secs %= 3600
+//     }
 
-    if secs >= 60 {
-        s.push_str(&(secs / 60).to_string());
-        s.push(':');
-        secs %= 60;
-    }
+//     if secs >= 60 {
+//         s.push_str(&(secs / 60).to_string());
+//         s.push(':');
+//         secs %= 60;
+//     }
 
-    if s.is_empty() {
-        s.push_str(&secs.to_string());
-        s.push_str(" s");
-    } else {
-        s.push_str(&format!("{secs:02}"));
-    }
+//     if s.is_empty() {
+//         s.push_str(&secs.to_string());
+//         s.push_str(" s");
+//     } else {
+//         s.push_str(&format!("{secs:02}"));
+//     }
 
-    s
-}
+//     s
+// }
 
 pub fn weighted_median(xs: &[(f64, f64)] /* (val, weight) */) -> Result<f64> {
     if xs.is_empty() {

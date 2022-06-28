@@ -2,8 +2,9 @@ use std::{fmt::Display, str::FromStr};
 
 use anyhow::{bail, Result};
 
-use crate::{WaypointExt, util::weighted_median};
+use crate::{util::weighted_median, WaypointExt};
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum SpeedUnits {
     KmPerH,
     MiPerH,
@@ -24,7 +25,7 @@ impl FromStr for SpeedUnits {
             "ft/s" => Ok(Self::FtPerS),
             "min/mi" => Ok(Self::MinPerMi),
             "min/km" => Ok(Self::MinPerKm),
-            s => bail!("invalid speed unit {s}"),
+            _ => bail!("must be one of: km/h, mi/h, m/s, ft/s, min/mi, min/km"),
         }
     }
 }
@@ -51,6 +52,10 @@ pub fn convert(speed: f64, units: &SpeedUnits) -> f64 {
         SpeedUnits::MinPerMi => 26.82 / speed,
         SpeedUnits::MinPerKm => 16.67 / speed,
     }
+}
+
+pub fn pretty(speed: &f64, units: &SpeedUnits) -> String {
+    format!("{:.2} {units}", convert(*speed, units))
 }
 
 pub fn median(track: &[WaypointExt]) -> Result<f64> {

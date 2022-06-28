@@ -1,0 +1,7 @@
+total distance: 1.48 mi
+total time: 32:09
+average speed: 2.76 mi/h
+median speed: 2.67 mi/h
+
+max elevation: 258.21 ft
+min elevation: 215.23 ft

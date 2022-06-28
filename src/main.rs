@@ -10,22 +10,20 @@ mod dist;
 mod elev;
 mod speed;
 // mod two_way;
+mod analyze;
 mod util;
 
 #[cfg(test)]
 mod tests;
 
-use std::{cmp::Ordering, fs::File, io::BufReader};
+use std::{fs::File, io::BufReader};
 
+use analyze::Stats;
 use anyhow::{bail, Context, Result};
-use args::Args;
-use dist::DistUnits;
+use args::{Args, RawArgs};
 use geo::{GeodesicDistance, Point};
 use gpx::{Gpx, Track};
-use speed::SpeedUnits;
 use time::{Duration, OffsetDateTime};
-
-use crate::util::pretty_duration;
 
 /// Waypoint extention: a waypoint with extra data to assist in track analysis.
 pub struct WaypointExt {
@@ -80,51 +78,6 @@ impl WaypointExt {
     }
 }
 
-fn analyze_track(args: &Args, track: &[WaypointExt]) -> Result<()> {
-    if track.len() < 2 {
-        bail!("invalid track: track contains less than two waypoints");
-    }
-
-    let dist_units = args.dist_units.unwrap_or_default();
-    let speed_units = args.speed_units.as_ref().unwrap_or(match dist_units {
-        DistUnits::Metres => &SpeedUnits::KmPerH,
-        DistUnits::Feet => &SpeedUnits::MiPerH,
-    });
-
-    let dist = track.last().unwrap().dist;
-    println!("total distance: {}", dist::pretty(dist, &dist_units));
-
-    if let (Some(start), Some(end)) = (track[0].time, track.last().unwrap().time) {
-        let total_time = end - start;
-        println!("total time: {}", pretty_duration(total_time));
-
-        let avg_speed = dist / total_time.as_seconds_f64();
-        println!(
-            "average speed: {:.2} {speed_units}",
-            speed::convert(avg_speed, speed_units)
-        );
-    } else {
-        println!("error: couldn't get start and end times");
-    }
-
-    match speed::median(track) {
-        Ok(m) => println!(
-            "median speed: {:.2} {speed_units}",
-            speed::convert(m, speed_units)
-        ),
-        Err(e) => println!("error: couldnt get median speed: {e}"),
-    }
-
-    // println!();
-    // speed::print_max(track, speed_units);
-
-    println!();
-    elev::print_max(track, &dist_units);
-    elev::print_min(track, &dist_units);
-
-    Ok(())
-}
-
 fn main() {
     if let Err(e) = go() {
         println!("error: {e:#}");
@@ -132,28 +85,33 @@ fn main() {
 }
 
 fn go() -> Result<()> {
-    let args: Args = argh::from_env();
+    let raw_args: RawArgs = argh::from_env();
+    let args = Args::from(raw_args);
+
     let file = File::open(args.path.clone()).context("couldn't open provided file")?;
     let reader = BufReader::new(file);
     let gpx: Gpx = gpx::read(reader).context("couldn't parse provided file as gpx")?;
 
-    match gpx.tracks.len().cmp(&1) {
-        Ordering::Greater => {
-            if let Some(track) = args.track {
-                let points = WaypointExt::prepare_track(&gpx.tracks[track]);
-                analyze_track(&args, &points)?;
+    if gpx.tracks.is_empty() {
+        bail!("file contains no tracks");
+    }
+
+    if let Some(track) = gpx.tracks.get(args.track) {
+        let points = WaypointExt::prepare_track(&track);
+        let stats = Stats::from_track(&points, &args);
+        stats.print(&args);
+    } else {
+        bail!(
+            "track index out of bounds: file contains {} track{}, but the given index was {}.{}",
+            gpx.tracks.len(),
+            if gpx.tracks.len() == 1 { "" } else { "s" },
+            args.track,
+            if args.track == gpx.tracks.len() {
+                "\nhint: indices start at 0."
             } else {
-                bail!(
-                    "file contains multiple tracks. use --track <0..{}> to select one.",
-                    gpx.tracks.len() - 1
-                );
+                ""
             }
-        }
-        Ordering::Equal => {
-            let points = WaypointExt::prepare_track(&gpx.tracks[0]);
-            analyze_track(&args, &points)?;
-        }
-        _ => bail!("file contains no tracks"),
+        )
     }
 
     Ok(())

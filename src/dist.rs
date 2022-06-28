@@ -1,6 +1,8 @@
 use std::{fmt::Display, str::FromStr};
 
-use anyhow::bail;
+use anyhow::{bail, Context, Result};
+
+use crate::WaypointExt;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum DistUnits {
@@ -39,7 +41,7 @@ impl FromStr for DistUnits {
         match s {
             "m" => Ok(Self::Metres),
             "ft" => Ok(Self::Feet),
-            s => bail!("invalid distance unit '{}'", s),
+            _ => bail!("must be one of: m, ft"),
         }
     }
 }
@@ -48,11 +50,18 @@ pub fn convert(dist: f64, units: &DistUnits) -> f64 {
     dist * units.per_m()
 }
 
-pub fn pretty(dist: f64, units: &DistUnits) -> String {
-    let udist = convert(dist, units);
+pub fn pretty(dist: &f64, units: &DistUnits) -> String {
+    let udist = convert(*dist, units);
     if units == &DistUnits::Feet && udist >= 5280.0 {
         format!("{:.2} mi", udist / 5280.0)
     } else {
         format!("{:.2} {units}", udist)
     }
+}
+
+pub fn total(track: &[WaypointExt]) -> Result<f64> {
+    track
+        .last()
+        .map(|p| p.dist)
+        .context("couldnt get last waypoint")
 }
