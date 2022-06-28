@@ -1,6 +1,8 @@
 use std::{fmt::Display, str::FromStr};
 
-use anyhow::bail;
+use anyhow::{bail, Result};
+
+use crate::{WaypointExt, util::weighted_median};
 
 pub enum SpeedUnits {
     KmPerH,
@@ -49,4 +51,15 @@ pub fn convert(speed: f64, units: &SpeedUnits) -> f64 {
         SpeedUnits::MinPerMi => 26.82 / speed,
         SpeedUnits::MinPerKm => 16.67 / speed,
     }
+}
+
+pub fn median(track: &[WaypointExt]) -> Result<f64> {
+    let weighted_speeds: Vec<(f64, f64)> = track
+        .iter()
+        .filter_map(|p| {
+            p.speed
+                .and_then(|s| p.inter_time.map(|t| (s, t.as_seconds_f64())))
+        })
+        .collect();
+    weighted_median(&weighted_speeds)
 }

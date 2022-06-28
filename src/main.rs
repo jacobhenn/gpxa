@@ -12,7 +12,10 @@ mod speed;
 // mod two_way;
 mod util;
 
-use std::{fs::File, io::BufReader, cmp::Ordering};
+#[cfg(test)]
+mod tests;
+
+use std::{cmp::Ordering, fs::File, io::BufReader};
 
 use anyhow::{bail, Context, Result};
 use args::Args;
@@ -20,7 +23,7 @@ use dist::DistUnits;
 use geo::{GeodesicDistance, Point};
 use gpx::{Gpx, Track};
 use speed::SpeedUnits;
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 
 use crate::util::pretty_duration;
 
@@ -40,6 +43,9 @@ pub struct WaypointExt {
 
     /// Time at which waypoint was taken.
     pub time: Option<OffsetDateTime>,
+
+    /// Time duration between this waypoint and the next.
+    pub inter_time: Option<Duration>,
 }
 
 impl WaypointExt {
@@ -63,6 +69,7 @@ impl WaypointExt {
                     elev: point.elevation,
                     dist,
                     time: point.time.map(OffsetDateTime::from),
+                    inter_time,
                 });
                 dist += inter_dist;
                 point = next_point;
@@ -96,6 +103,16 @@ fn analyze_track(args: &Args, track: &[WaypointExt]) -> Result<()> {
             "average speed: {:.2} {speed_units}",
             speed::convert(avg_speed, speed_units)
         );
+    } else {
+        println!("error: couldn't get start and end times");
+    }
+
+    match speed::median(track) {
+        Ok(m) => println!(
+            "median speed: {:.2} {speed_units}",
+            speed::convert(m, speed_units)
+        ),
+        Err(e) => println!("error: couldnt get median speed: {e}"),
     }
 
     // println!();
@@ -116,8 +133,7 @@ fn main() {
 
 fn go() -> Result<()> {
     let args: Args = argh::from_env();
-    let file =
-        File::open(args.path.clone()).context("couldn't open provided file")?;
+    let file = File::open(args.path.clone()).context("couldn't open provided file")?;
     let reader = BufReader::new(file);
     let gpx: Gpx = gpx::read(reader).context("couldn't parse provided file as gpx")?;
 
@@ -127,7 +143,10 @@ fn go() -> Result<()> {
                 let points = WaypointExt::prepare_track(&gpx.tracks[track]);
                 analyze_track(&args, &points)?;
             } else {
-                bail!("file contains multiple tracks. use --track <0..{}> to select one.", gpx.tracks.len() - 1);
+                bail!(
+                    "file contains multiple tracks. use --track <0..{}> to select one.",
+                    gpx.tracks.len() - 1
+                );
             }
         }
         Ordering::Equal => {
