@@ -5,7 +5,7 @@ use anyhow::{bail, Result};
 use crate::{util::weighted_median, WaypointExt};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum SpeedUnits {
+pub enum Units {
     KmPerH,
     MiPerH,
     MPerS,
@@ -14,7 +14,7 @@ pub enum SpeedUnits {
     MinPerKm,
 }
 
-impl FromStr for SpeedUnits {
+impl FromStr for Units {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -30,7 +30,7 @@ impl FromStr for SpeedUnits {
     }
 }
 
-impl Display for SpeedUnits {
+impl Display for Units {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::KmPerH => write!(f, "km/h"),
@@ -43,19 +43,19 @@ impl Display for SpeedUnits {
     }
 }
 
-pub fn convert(speed: f64, units: &SpeedUnits) -> f64 {
+pub fn convert(speed: f64, units: Units) -> f64 {
     match units {
-        SpeedUnits::KmPerH => speed * 3.6,
-        SpeedUnits::MiPerH => speed * 2.237,
-        SpeedUnits::MPerS => speed * 1.0,
-        SpeedUnits::FtPerS => speed * 3.281,
-        SpeedUnits::MinPerMi => 26.82 / speed,
-        SpeedUnits::MinPerKm => 16.67 / speed,
+        Units::KmPerH => speed * 3.6,
+        Units::MiPerH => speed * 2.237,
+        Units::MPerS => speed * 1.0,
+        Units::FtPerS => speed * 3.281,
+        Units::MinPerMi => 26.82 / speed,
+        Units::MinPerKm => 16.67 / speed,
     }
 }
 
-pub fn pretty(speed: &f64, units: &SpeedUnits) -> String {
-    format!("{:.2} {units}", convert(*speed, units))
+pub fn pretty(speed: f64, units: Units) -> String {
+    format!("{:.2} {units}", convert(speed, units))
 }
 
 pub fn median(track: &[WaypointExt]) -> Result<f64> {

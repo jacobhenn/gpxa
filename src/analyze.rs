@@ -1,54 +1,71 @@
 use crate::{args::Args, dist, elev, speed, WaypointExt};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use time::{Duration, OffsetDateTime};
 
 pub struct Stats {
-    total_dist: Option<Result<f64>>,
-    total_time: Option<Result<Duration>>,
-    avg_speed: Option<Result<f64>>,
-    median_speed: Option<Result<f64>>,
-    max_elev: Option<Result<f64>>,
-    min_elev: Option<Result<f64>>,
+    total_dist: Option<f64>,
+    total_time: Option<Duration>,
+    avg_speed: Option<f64>,
+    median_speed: Option<f64>,
+    max_elev: Option<f64>,
+    min_elev: Option<f64>,
 }
 
 impl Stats {
-    pub fn from_track(track: &[WaypointExt], _args: &Args) -> Self {
-        let total_dist = dist::total(track).context("couldnt get total distance");
-        let total_time = time_total(track).context("couldnt get total time");
-        let mean_speed = total_dist.and_then(|d| total_time.and_then(|t| {
-            let secs = t.as_seconds_f64();
-            if secs == 0.0 {
-                bail!("zero elapsed time");
-            } else {
-                Ok(d / secs)
-            }
-        }));
-        Self {
-            total_dist: Some(dist::total(track).context("couldnt get total distance")),
-            total_time: Some(time_total(track).context("couldnt get total time")),
-            avg_speed: Some(mean_speed.context("couldn't get mean speed")),
-            median_speed: Some(speed::median(track).context("couldnt get median speed")),
-            max_elev: Some(elev::max(track).context("couldnt get max elevation")),
-            min_elev: Some(elev::min(track).context("couldnt get min elevation")),
+    pub fn from_track(track: &[WaypointExt], args: &Args) -> Result<Self> {
+        let mut total_dist = None;
+        let mut total_time = None;
+        let mut avg_speed = None;
+        let mut median_speed = None;
+        let mut max_elev = None;
+        let mut min_elev = None;
+
+        if args.mask.total_dist {
+            total_dist = Some(dist::total(track).context("couldnt get total distance")?);
         }
+
+        if args.mask.total_time {
+            let time = time_total(track).context("couldnt get total time")?;
+            if let Some(total_dist) = total_dist {
+                if time.is_zero() {
+                    bail!("no time elapsed");
+                }
+                avg_speed = Some(total_dist / time.as_seconds_f64());
+            }
+            total_time = Some(time);
+        }
+
+        if args.mask.median_speed {
+            median_speed = Some(speed::median(track).context("couldnt get median speed")?);
+        }
+
+        if args.mask.max_elev {
+            max_elev = Some(elev::max(track).context("couldnt get max elevation")?);
+        }
+
+        if args.mask.min_elev {
+            min_elev = Some(elev::min(track).context("couldnt get min elevation")?);
+        }
+
+        Ok(Self {
+            total_dist,
+            total_time,
+            avg_speed,
+            median_speed,
+            max_elev,
+            min_elev,
+        })
     }
 
     pub fn print(&self, args: &Args) {
         args.print_dist_stat("total distance", &self.total_dist, args.dist_units);
-        args.print_stat(
-            "total time",
-            &self.total_time,
-            |t| t.to_string(),
-            |t| t.whole_milliseconds().to_string(),
-        );
+        args.print_stat("total time", &self.total_time, Duration::to_string, |t| {
+            t.whole_milliseconds().to_string()
+        });
         args.print_speed_stat("average speed", &self.avg_speed, args.speed_units);
         args.print_speed_stat("median speed", &self.median_speed, args.speed_units);
-
-        if args.pretty {
-            println!()
-        }
-
+        args.mask.print_newln_0();
         args.print_dist_stat("max elevation", &self.max_elev, args.dist_units);
         args.print_dist_stat("min elevation", &self.min_elev, args.dist_units);
     }

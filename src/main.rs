@@ -1,10 +1,12 @@
-#[warn(clippy::nursery)]
-#[warn(clippy::pedantic)]
-#[warn(clippy::style)]
-#[warn(clippy::complexity)]
-#[warn(clippy::perf)]
-#[warn(clippy::style)]
-#[warn(clippy::suspicious)]
+#![warn(clippy::nursery)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::style)]
+#![warn(clippy::complexity)]
+#![warn(clippy::perf)]
+#![warn(clippy::style)]
+#![warn(clippy::suspicious)]
+#![allow(clippy::struct_excessive_bools)]
+
 mod args;
 mod dist;
 mod elev;
@@ -20,7 +22,7 @@ use std::{fs::File, io::BufReader};
 
 use analyze::Stats;
 use anyhow::{bail, Context, Result};
-use args::{Args, RawArgs};
+use args::{Args, Raw};
 use geo::{GeodesicDistance, Point};
 use gpx::{Gpx, Track};
 use time::{Duration, OffsetDateTime};
@@ -47,6 +49,7 @@ pub struct WaypointExt {
 }
 
 impl WaypointExt {
+    #[must_use]
     pub fn prepare_track(track: &Track) -> Vec<Self> {
         let mut points = track.segments.iter().flat_map(|seg| seg.points.iter());
 
@@ -78,39 +81,40 @@ impl WaypointExt {
     }
 }
 
-fn main() {
-    if let Err(e) = go() {
-        println!("error: {e:#}");
-    }
-}
-
-fn go() -> Result<()> {
-    let raw_args: RawArgs = argh::from_env();
+fn main() -> Result<()> {
+    let raw_args: Raw = argh::from_env();
     let args = Args::from(raw_args);
+
+    if args.path.is_dir() {
+        bail!("{:?} is a directory.", args.path);
+    }
 
     let file = File::open(args.path.clone()).context("couldn't open provided file")?;
     let reader = BufReader::new(file);
-    let gpx: Gpx = gpx::read(reader).context("couldn't parse provided file as gpx")?;
+    let gpx: Gpx = gpx::read(reader).with_context(|| format!("{:?} has invalid gpx", args.path))?;
 
     if gpx.tracks.is_empty() {
         bail!("file contains no tracks");
+    } else if gpx.tracks.len() > 1 && args.track.is_none() {
+        bail!(
+            "{:?} has more than one track. use --track <0..{}> to specify.",
+            args.path,
+            gpx.tracks.len() - 1
+        );
     }
 
-    if let Some(track) = gpx.tracks.get(args.track) {
-        let points = WaypointExt::prepare_track(&track);
-        let stats = Stats::from_track(&points, &args);
+    let i = args.track.unwrap_or_default();
+    if let Some(track) = gpx.tracks.get(i) {
+        let points = WaypointExt::prepare_track(track);
+        let stats = Stats::from_track(&points, &args)?;
         stats.print(&args);
     } else {
         bail!(
-            "track index out of bounds: file contains {} track{}, but the given index was {}.{}",
+            "{:?} has {} track{}, but index was {} (indices start at 0).",
+            args.path,
             gpx.tracks.len(),
             if gpx.tracks.len() == 1 { "" } else { "s" },
-            args.track,
-            if args.track == gpx.tracks.len() {
-                "\nhint: indices start at 0."
-            } else {
-                ""
-            }
+            i,
         )
     }
 

@@ -3,7 +3,7 @@
 `gpxa` is a GPX (GPS Exchange) file analyzer. GPX files store recorded (or planned) positions and paths. apps like Strava record GPX files and provide analyses of them. `gpxa` is an open-source alternative to these kinds of services. as for recording a gpx file to analyze, check out merlos' [Open GPX Tracker](https://github.com/merlos/iOS-Open-GPX-Tracker) (iOS only).
 
 ```
-Usage: gpxa <path> [-t <track>] [-p <pretty>] [-u <dist-units>] [-v <speed-units>]
+Usage: gpxa <path> [-t <track>] [-p <pretty>] [-d <dist-units>] [-s <speed-units>] [-o <output>]
 
 A GPX (GPS Exchange) file analyzer.
 
@@ -11,17 +11,21 @@ Positional Arguments:
   path              a path to a gpx file
 
 Options:
-  -t, --track       which track in the gpx file to analyze (0-based). not necessary if
-                    there is only one track.
+  -t, --track       which track in the gpx file to analyze (0-based index). not
+                    necessary if there is only one track.
   -p, --pretty      when to print stat names and units. values: always, auto,
                     never. auto detects if output is being piped. defaults to
                     auto.
-  -u, --dist-units  distance units to use. ft for feet and m for metres.
+  -d, --dist-units  distance units to use. ft for feet and m for metres.
                     defaults to metres.
-  -v, --speed-units speed units to use. values: km/h, mi/h, m/s, ft/s, min/km,
-                    min/mi. defaults to (mi|km)/hr depending on --dist-units.
+  -s, --speed-units speed units to use. values: km/h, mi/h, m/s, ft/s, min/km,
+                    min/mi. defaults to mi or km per hr depending on
+                    --dist-units.
+  -o, --output      what to display in output. comma-separated list of values.
+                    values: total-dist, total-time, avg-speed, median-speed,
+                    max-elev, min-elev. order of values does not affect order of
+                    output. defaults to all of them.
   --help            display usage information
-
 ```
 
 ## examples
@@ -66,7 +70,7 @@ $ cat out.txt
 ### pretty printing
 
 - if `--pretty` is set to `auto`, it will only pretty print if the output of `gpxa` is not being redirected.
-- when pretty printing is off, descriptions, blank lines, and units will not be printed, all units are strict (e.g. won't auto-convert 2000 ft to 0.37 mi), and times are given in integer numbers of milliseconds.
+- when pretty printing is off, descriptions, blank lines, and units will not be printed, all units are strict (e.g. won't auto-convert 2000 ft to 0.37 mi), and times are given in integer numbers of milliseconds. in addition, errors while finding any requested statistic will prevent the printing of any statistics and behave as a fatal error instead of printing in stdout with the successfully computed statistics.
 
 ## known errors / restrictions
 

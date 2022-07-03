@@ -5,13 +5,13 @@ use anyhow::{bail, Context, Result};
 use crate::WaypointExt;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
-pub enum DistUnits {
+pub enum Units {
     Metres,
     Feet,
 }
 
-impl DistUnits {
-    fn per_m(self: DistUnits) -> f64 {
+impl Units {
+    const fn per_m(self) -> f64 {
         match self {
             Self::Metres => 1.0,
             Self::Feet => 3.281,
@@ -19,13 +19,13 @@ impl DistUnits {
     }
 }
 
-impl Default for DistUnits {
+impl Default for Units {
     fn default() -> Self {
         Self::Metres
     }
 }
 
-impl Display for DistUnits {
+impl Display for Units {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Metres => write!(f, "m"),
@@ -34,7 +34,7 @@ impl Display for DistUnits {
     }
 }
 
-impl FromStr for DistUnits {
+impl FromStr for Units {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -46,16 +46,16 @@ impl FromStr for DistUnits {
     }
 }
 
-pub fn convert(dist: f64, units: &DistUnits) -> f64 {
+pub fn convert(dist: f64, units: Units) -> f64 {
     dist * units.per_m()
 }
 
-pub fn pretty(dist: &f64, units: &DistUnits) -> String {
-    let udist = convert(*dist, units);
-    if units == &DistUnits::Feet && udist >= 5280.0 {
-        format!("{:.2} mi", udist / 5280.0)
+pub fn pretty(dist: f64, units: Units) -> String {
+    let dist_converted = convert(dist, units);
+    if units == Units::Feet && dist_converted >= 5280.0 {
+        format!("{:.2} mi", dist_converted / 5280.0)
     } else {
-        format!("{:.2} {units}", udist)
+        format!("{:.2} {units}", dist_converted)
     }
 }
 
